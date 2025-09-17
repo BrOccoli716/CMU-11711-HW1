@@ -16,6 +16,5 @@ llama = load_pretrained("stories42M.pt")
 with torch.no_grad():
     logits, hidden_states = llama(sent_ids)
     assert torch.allclose(logits, sanity_data["logits"], atol=1e-5, rtol=1e-3)
-    print(hidden_states, sanity_data["hidden_states"], sep='\n')
     assert torch.allclose(hidden_states, sanity_data["hidden_states"], atol=1e-5, rtol=1e-3)
     print("Your Llama implementation is correct!")
