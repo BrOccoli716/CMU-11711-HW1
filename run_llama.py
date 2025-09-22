@@ -48,20 +48,26 @@ class LlamaDataset(Dataset):
 		sents = [x[0] for x in data]
 		labels = [x[1] for x in data]
 		encoding = [self.tokenizer.encode(s, bos=True, eos=self.eos) for s in sents]
-		max_length_in_batch = max([len(sentence) for sentence in encoding])
+		lengths = [len(sentence) for sentence in encoding]  # newly updated
+		max_length_in_batch = max(lengths)
 		encoding_padded = [sentence + [self.tokenizer.pad_id] * (max_length_in_batch - len(sentence)) for sentence in encoding]
 		token_ids = torch.LongTensor(encoding_padded)
 		labels = torch.LongTensor(labels)
+		
+		padding_mask = torch.zeros(len(encoding), max_length_in_batch, dtype=torch.bool)
+		for i, length in enumerate(lengths):
+			padding_mask[i, :length] = True
 
-		return token_ids, labels, sents
+		return token_ids, labels, sents, padding_mask
 
 	def collate_fn(self, all_data):
 
-		token_ids, labels, sents = self.pad_data(all_data)
+		token_ids, labels, sents, padding_mask = self.pad_data(all_data)
 		batched_data = {
 				'token_ids': token_ids,
 				'labels': labels,
 				'sents': sents,
+				'padding_mask': padding_mask,
 			}
 
 		return batched_data
@@ -189,7 +195,7 @@ def train(args):
 		train_loss = 0
 		num_batches = 0
 		for step, batch in enumerate(tqdm(train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
-			b_ids, b_labels, b_sents = batch['token_ids'], batch['labels'], batch['sents']
+			b_ids, b_labels, b_sents, b_padding_mask = batch['token_ids'], batch['labels'], batch['sents'], batch['padding_mask']
 
 			b_ids = b_ids.to(device)
 			b_labels = b_labels.to(device)
@@ -300,6 +306,7 @@ def generate_sentence(args, prefix, outfile, max_new_tokens = 75, temperature = 
 		device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
 		ctx = torch.amp.autocast(device_type="cuda", dtype=torch.float32) if args.use_gpu else nullcontext()
 		llama = load_pretrained(args.pretrained_model_path)
+		llama.causal = True
 		llama = llama.to(device)
 		print(f"load model from {args.pretrained_model_path}")
 		enc = Tokenizer(args.max_sentence_len)

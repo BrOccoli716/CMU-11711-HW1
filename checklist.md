@@ -9,7 +9,7 @@
 - [✅] **llama.py**
 - [✅] **rope.py**
 - [✅] **optimizer.py**
-- [] **classifier.py**
+- [✅] **classifier.py**
 - [✅] **lora.py**
 
 ### Testing & Validation

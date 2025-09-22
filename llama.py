@@ -84,7 +84,7 @@ class Attention(nn.Module):
                                        query: torch.Tensor,
                                        key: torch.Tensor,
                                        value: torch.Tensor,
-                                       padding: torch.Tensor = None,
+                                       padding_mask: torch.Tensor = None,
                                        causal: bool = False) -> torch.Tensor:
         '''
         Jointly compute Scaled Dot Product Attention (see Section 3.2.1 in
@@ -106,8 +106,8 @@ class Attention(nn.Module):
             causal_mask = causal_mask[None, None, :, :]
             scores = scores.masked_fill(causal_mask == 0, float('-inf'))
 
-        if padding is not None:
-            padding_mask = get_extended_attention_mask(padding, query.dtype)
+        if padding_mask is not None:
+            padding_mask = get_extended_attention_mask(padding_mask, query.dtype)
             scores = scores + padding_mask
 
         attn_weight = F.softmax(scores, dim=-1)
@@ -116,7 +116,9 @@ class Attention(nn.Module):
 
     def forward(
         self,
-        x: torch.Tensor
+        x: torch.Tensor,
+        padding_mask: torch.Tensor = None,
+        causal: bool = False
     ):
         '''
         Llama2 uses Grouped-Query Attention. The details of GQA are actually
@@ -149,7 +151,7 @@ class Attention(nn.Module):
         query = query.transpose(1, 2)  # (bs, n_local_heads, seqlen, head_dim)
         key = key.transpose(1, 2)
         value = value.transpose(1, 2)
-        output = self.compute_query_key_value_scores(query, key, value)
+        output = self.compute_query_key_value_scores(query, key, value, padding_mask, causal)
 
         # restore time as batch dimension and concat heads
         output = output.transpose(1, 2).contiguous().view(batch_size, seqlen, -1)
@@ -199,7 +201,7 @@ class LlamaLayer(nn.Module):
         self.attention_norm = LayerNorm(config.dim, eps=config.layer_norm_eps)
         self.ffn_norm = LayerNorm(config.dim, eps=config.layer_norm_eps)
 
-    def forward(self, x):
+    def forward(self, x, padding_mask, causal):
         '''
         This is the forward pass of the basic transformer building block. This is a
         modernized version of the block shown on the left of Figure 1 on
@@ -217,7 +219,7 @@ class LlamaLayer(nn.Module):
         # todo
         # raise NotImplementedError
         x_norm = self.attention_norm(x)
-        x = self.attention(x_norm) + x
+        x = self.attention(x_norm, padding_mask, causal) + x
         x_norm = self.ffn_norm(x)
         output = self.feed_forward(x_norm) + x
         return output
@@ -241,6 +243,7 @@ class Llama(LlamaPreTrainedModel):
             self.layers.append(LlamaLayer(layer_id, config))
         self.norm = LayerNorm(config.dim, eps=config.layer_norm_eps)
         self.output = nn.Linear(config.dim, config.vocab_size, bias=False)
+        self.causal = False
 
         # share the unembedding parameters with the embedding parameters
         self.tok_embeddings.weight = self.output.weight # https://paperswithcode.com/method/weight-tying
@@ -262,13 +265,13 @@ class Llama(LlamaPreTrainedModel):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, tokens: torch.Tensor, targets: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, tokens: torch.Tensor, targets: Optional[torch.Tensor] = None, padding_mask: torch.Tensor = None) -> torch.Tensor:
         _batch_size, seqlen = tokens.shape
         h = self.tok_embeddings(tokens)
         h = self.dropout(h)
 
         for layer in self.layers:
-            h = layer(h)
+            h = layer(h, padding_mask, self.causal)
         h = self.norm(h)
 
         if targets is not None:
@@ -323,24 +326,24 @@ class Llama(LlamaPreTrainedModel):
         return idx
 
 def load_pretrained(checkpoint):
-  device = 'cuda' if torch.cuda.is_available() else 'cpu' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
-  #dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32' or 'bfloat16' or 'float16'
-  dtype = "float32"
+    device = 'cuda' if torch.cuda.is_available() else 'cpu' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
+    #dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32' or 'bfloat16' or 'float16'
+    dtype = "float32"
 
-  torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
-  torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
-  device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.autocast
-  ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
-  ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
+    torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
+    torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
+    device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.autocast
+    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
+    ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-  # init from a model saved in a specific directory
-  checkpoint_dict = torch.load(checkpoint, map_location=device)
-  config = LlamaConfig(**checkpoint_dict['model_args'])
-  model = Llama(config)
-  state_dict = checkpoint_dict['model']
-  unwanted_prefix = '_orig_mod.'
-  for k,v in list(state_dict.items()):
-      if k.startswith(unwanted_prefix):
-          state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-  model.load_state_dict(state_dict, strict=False)
-  return model
+    # init from a model saved in a specific directory
+    checkpoint_dict = torch.load(checkpoint, map_location=device)
+    config = LlamaConfig(**checkpoint_dict['model_args'])
+    model = Llama(config)
+    state_dict = checkpoint_dict['model']
+    unwanted_prefix = '_orig_mod.'
+    for k,v in list(state_dict.items()):
+        if k.startswith(unwanted_prefix):
+            state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+    model.load_state_dict(state_dict, strict=False)
+    return model
