@@ -55,4 +55,9 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		'''
 		# todo
 		# raise NotImplementedError
-		i
+		_, hidden_states = self.llama(input_ids)
+		hidden_state = hidden_states[:, -1, :]
+		hidden_state = self.dropout(hidden_state)
+		logits = self.classifier_head(hidden_state)
+		log_probabilities = F.log_softmax(logits, dim=-1)
+		return log_probabilities
