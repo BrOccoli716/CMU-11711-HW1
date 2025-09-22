@@ -2,20 +2,20 @@
 ## Assignment Checklist
 
 ### Setup & Environment
-- [ ] Run `bash setup.sh` successfully
-- [ ] Verify model weights downloaded (stories42M.pt)
+- [✅] Run `bash setup.sh` successfully
+- [✅] Verify model weights downloaded (stories42M.pt)
 
 ### Core Implementation
-- [ ] **llama.py**
-- [ ] **rope.py**
-- [ ] **optimizer.py**
-- [ ] **classifier.py**
-- [ ] **lora.py**
+- [✅] **llama.py**
+- [✅] **rope.py**
+- [✅] **optimizer.py**
+- [] **classifier.py**
+- [✅] **lora.py**
 
 ### Testing & Validation
-- [ ] Pass `python sanity_check.py`
-- [ ] Pass `python optimizer_test.py` 
-- [ ] Pass `python rope_test.py` 
+- [✅] Pass `python sanity_check.py`
+- [✅] Pass `python optimizer_test.py` 
+- [✅] Pass `python rope_test.py` 
 - [ ] Generate coherent text with `python run_llama.py --option generate`
 - [ ] Complete SST zero-shot prompting
 - [ ] Complete CFIMDB zero-shot prompting  

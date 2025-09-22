@@ -83,7 +83,9 @@ class Attention(nn.Module):
     def compute_query_key_value_scores(self,
                                        query: torch.Tensor,
                                        key: torch.Tensor,
-                                       value: torch.Tensor) -> torch.Tensor:
+                                       value: torch.Tensor,
+                                       padding: torch.Tensor = None,
+                                       causal: bool = False) -> torch.Tensor:
         '''
         Jointly compute Scaled Dot Product Attention (see Section 3.2.1 in
         https://arxiv.org/abs/1706.03762 for details). The query, key, and
@@ -96,7 +98,19 @@ class Attention(nn.Module):
         '''
         # todo
         # raise NotImplementedError
-        attn_weight = F.softmax(torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dim), dim=-1)
+        scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dim)
+
+        if causal:
+            seq_len = query.shape[2]
+            causal_mask = torch.tril(torch.ones(seq_len, seq_len, device=query.device))
+            causal_mask = causal_mask[None, None, :, :]
+            scores = scores.masked_fill(causal_mask == 0, float('-inf'))
+
+        if padding is not None:
+            padding_mask = get_extended_attention_mask(padding, query.dtype)
+            scores = scores + padding_mask
+
+        attn_weight = F.softmax(scores, dim=-1)
         attn_output = torch.matmul(self.attn_dropout(attn_weight), value)  # (bs, n_local_heads, seqlen, head_dim)
         return attn_output
 
@@ -293,7 +307,7 @@ class Llama(LlamaPreTrainedModel):
                 '''
                 Perform temperature sampling with epsilon sampling:
                 1) Scale the logits with the temperature followed by normalization using Softmax.
-                2) Create a mask to filter out tokens with probability below epsilon threshold.
+                2) Create a  to filter out tokens with probability below epsilon threshold.
                 3) Apply the mask to keep only tokens with probability >= epsilon.
                 4) Renormalize the filtered probabilities so they sum to 1.
                 5) Sample from this filtered probability distribution.
