@@ -105,11 +105,12 @@ def model_eval(dataloader, model, device):
 	y_pred = []
 	sents = []
 	for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-		b_ids, b_labels, b_sents = batch['token_ids'], batch['labels'], batch['sents']
+		b_ids, b_labels, b_sents, b_padding_mask = batch['token_ids'], batch['labels'], batch['sents'], batch['padding_mask']
 
 		b_ids = b_ids.to(device)
+		b_padding_mask = b_padding_mask.to(device)
 
-		logits = model(b_ids)
+		logits = model(b_ids, padding_mask=b_padding_mask)
 		logits = logits.detach().cpu().numpy()
 		preds = np.argmax(logits, axis=1).flatten()
 
@@ -199,9 +200,10 @@ def train(args):
 
 			b_ids = b_ids.to(device)
 			b_labels = b_labels.to(device)
+			b_padding_mask = b_padding_mask.to(device)
 
 			optimizer.zero_grad()
-			logits = model(b_ids)
+			logits = model(b_ids, b_padding_mask)
 			loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
 			loss.backward()
@@ -275,13 +277,14 @@ def train_lora(args):
 		train_loss = 0
 		num_batches = 0
 		for step, batch in enumerate(tqdm(train_dataloader, desc=f'lora-train-{epoch}', disable=TQDM_DISABLE)):
-			b_ids, b_labels, b_sents = batch['token_ids'], batch['labels'], batch['sents']
+			b_ids, b_labels, b_sents, b_padding_mask = batch['token_ids'], batch['labels'], batch['sents'], batch['padding_mask']
 
 			b_ids = b_ids.to(device)
 			b_labels = b_labels.to(device)
+			b_padding_mask = b_padding_mask.to(device)
 
 			optimizer.zero_grad()
-			logits = model(b_ids)
+			logits = model(b_ids, b_padding_mask)
 			loss = F.cross_entropy(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
 			loss.backward()

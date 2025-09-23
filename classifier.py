@@ -20,9 +20,9 @@ class LlamaZeroShotClassifier(torch.nn.Module):
 		self.tokenizer = tokenizer
 		self.label_name_ids = [tokenizer.encode(label, bos=False, eos=False) for label in label_names]
 
-	def forward(self, input_ids):
+	def forward(self, input_ids, padding_mask=None):
 		# compute the completion probability of each label string
-		logits, _ = self.llama(input_ids)
+		logits, _ = self.llama(input_ids, padding_mask=padding_mask)
 		log_probabilities = F.log_softmax(logits, dim=-1)
 		label_probabilities = torch.zeros((log_probabilities.shape[0], self.num_labels), device=log_probabilities.device)
 		for i, label_token_ids in enumerate(self.label_name_ids):
@@ -46,7 +46,7 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
 		self.classifier_head = torch.nn.Linear(self.llama.config.dim, self.num_labels)
 
-	def forward(self, input_ids):
+	def forward(self, input_ids, padding_mask=None):
 		'''
 		1) Find the hidden state after the final token of the input sequence
 		2) Apply dropout (self.dropout) to the hidden state at training time to mitigate
@@ -57,7 +57,7 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		'''
 		# todo
 		# raise NotImplementedError
-		_, hidden_states = self.llama(input_ids)
+		_, hidden_states = self.llama(input_ids, padding_mask=padding_mask)
 		hidden_state = hidden_states[:, -1, :]
 		hidden_state = self.dropout(hidden_state)
 		logits = self.classifier_head(hidden_state)

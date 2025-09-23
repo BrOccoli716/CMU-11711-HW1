@@ -201,7 +201,7 @@ class LlamaLayer(nn.Module):
         self.attention_norm = LayerNorm(config.dim, eps=config.layer_norm_eps)
         self.ffn_norm = LayerNorm(config.dim, eps=config.layer_norm_eps)
 
-    def forward(self, x, padding_mask, causal):
+    def forward(self, x, padding_mask=None, causal=False):
         '''
         This is the forward pass of the basic transformer building block. This is a
         modernized version of the block shown on the left of Figure 1 on
@@ -279,7 +279,9 @@ class Llama(LlamaPreTrainedModel):
             logits = self.output(h)
         else:
             # inference-time mini-optimization: only forward the output on the very last position
-            logits = self.output(h[:, [-1], :]) # note: using list [-1] to preserve the time dim
+            last_indices = padding_mask.sum(dim=1) - 1
+            # logits = self.output(h[:, [-1], :]) # note: using list [-1] to preserve the time dim
+            logits = self.output(h[torch.arange(_batch_size), last_indices, :].unsqueeze(1))
 
         return logits, h
 
