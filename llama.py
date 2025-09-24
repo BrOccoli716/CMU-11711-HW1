@@ -279,9 +279,11 @@ class Llama(LlamaPreTrainedModel):
             logits = self.output(h)
         else:
             # inference-time mini-optimization: only forward the output on the very last position
-            last_indices = padding_mask.sum(dim=1) - 1
-            # logits = self.output(h[:, [-1], :]) # note: using list [-1] to preserve the time dim
-            logits = self.output(h[torch.arange(_batch_size), last_indices, :].unsqueeze(1))
+            if padding_mask is not None:
+                last_indices = padding_mask.sum(dim=1) - 1
+                logits = self.output(h[torch.arange(_batch_size), last_indices, :].unsqueeze(1))
+            else:
+                logits = self.output(h[:, [-1], :]) # note: using list [-1] to preserve the time dim
 
         return logits, h
 
