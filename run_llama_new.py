@@ -184,6 +184,7 @@ def train(args):
 	# initialize the Senetence Classification Model
 	model = LlamaEmbeddingClassifier(config)
 	model = model.to(device)
+	model.llama.causal = True
 
 	lr = args.lr
 	## specify the optimizer
@@ -259,6 +260,7 @@ def train_lora(args):
 	lora_params, total_params, percentage = count_lora_parameters(model)
 	
 	model = model.to(device)
+	model.llama.causal = True
 
 	# Only optimize LoRA parameters and classifier head
 	lora_params = get_lora_optimizer_params(model)
@@ -365,6 +367,7 @@ def test_with_prompting(args):
 		prompt_suffix=f"Is this movie {label_name_str}? This movie is "
 		model = LlamaZeroShotClassifier(config, tokenizer, label_names)
 		model = model.to(device)
+		model.llama.causal = True
 
 		dev_data = create_data(args.dev, tokenizer, 'valid', eos=False, prompt_suffix=prompt_suffix)
 		dev_dataset = LlamaDataset(dev_data, args, eos=False)
@@ -394,7 +397,7 @@ def test(args):
         model.load_state_dict(saved['model'])
         model = model.to(device)
         print(f"load model from {args.filepath}")
-        
+        model.llama.causal = True
         tokenizer = Tokenizer(args.max_sentence_len)
         dev_data = create_data(args.dev, tokenizer, 'valid')
         dev_dataset = LlamaDataset(dev_data, args)

@@ -12,7 +12,7 @@ class LlamaZeroShotClassifier(torch.nn.Module):
 		super(LlamaZeroShotClassifier, self).__init__()
 		self.num_labels = config.num_labels
 		self.llama = load_pretrained(config.pretrained_model_path)
-		self.llama.causal = True
+		# self.llama.causal = True
 		# Zero-shot classification does not require updating llama paramters.
 		for param in self.llama.parameters():
 			param.requires_grad = False
@@ -35,7 +35,7 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		super(LlamaEmbeddingClassifier, self).__init__()
 		self.num_labels = config.num_labels
 		self.llama = load_pretrained(config.pretrained_model_path)
-		self.llama.causal = True
+		# self.llama.causal = True
 		# If we use pretrain mode, we freeze Llama parameters.
 		for param in self.llama.parameters():
 			if config.option == 'pretrain':
@@ -58,7 +58,12 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		# todo
 		# raise NotImplementedError
 		_, hidden_states = self.llama(input_ids, padding_mask=padding_mask)
-		hidden_state = hidden_states[:, -1, :]
+		if padding_mask is not None:
+			last_indices = padding_mask.sum(dim=1) - 2
+			_batch_size = hidden_states.shape[0]
+			hidden_state = self.output(hidden_states[torch.arange(_batch_size), last_indices, :].unsqueeze(1))
+		else:
+			hidden_state = hidden_states[:, -1, :]
 		hidden_state = self.dropout(hidden_state)
 		logits = self.classifier_head(hidden_state)
 		log_probabilities = F.log_softmax(logits, dim=-1)
