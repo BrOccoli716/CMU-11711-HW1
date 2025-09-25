@@ -38,6 +38,7 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		# self.llama.causal = True
 		# If we use pretrain mode, we freeze Llama parameters.
 		for param in self.llama.parameters():
+			print(param.requires_grad)
 			if config.option == 'pretrain':
 				param.requires_grad = False
 			elif config.option == 'finetune':

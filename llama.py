@@ -282,8 +282,8 @@ class Llama(LlamaPreTrainedModel):
             if padding_mask is not None:
                 last_indices = padding_mask.sum(dim=1) - 2
                 logits = self.output(h[torch.arange(_batch_size), last_indices, :].unsqueeze(1))
-                print(tokens[0, :])
-                print(tokens[torch.arange(_batch_size), last_indices])
+                # print(tokens[0, :])
+                # print(tokens[torch.arange(_batch_size), last_indices])
             else:
                 logits = self.output(h[:, [-1], :]) # note: using list [-1] to preserve the time dim
 
