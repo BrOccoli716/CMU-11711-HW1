@@ -339,8 +339,8 @@ def write_predictions_to_file(split: str, outfile: str, acc: float, pred: list[s
 			f.write(f"{p} ||| {s}\n")
 
 def test_with_prompting(args):
-	assert args.dev_out.endswith("dev-prompting-output.txt"), 'For saving prompting results, please set the dev_out argument as "<dataset>-dev-prompting-output.txt"'
-	assert args.test_out.endswith("test-prompting-output.txt"), 'For saving prompting results, please set the test_out argument as "<dataset>-test-prompting-output.txt"'
+	# assert args.dev_out.endswith("dev-prompting-output.txt"), 'For saving prompting results, please set the dev_out argument as "<dataset>-dev-prompting-output.txt"'
+	# assert args.test_out.endswith("test-prompting-output.txt"), 'For saving prompting results, please set the test_out argument as "<dataset>-test-prompting-output.txt"'
 
 	with torch.no_grad():
 
@@ -384,10 +384,10 @@ def test_with_prompting(args):
 		write_predictions_to_file("test", args.test_out, test_acc, test_pred, test_sents)
 
 def test(args):
-    assert args.dev_out.endswith("dev-finetuning-output.txt") or args.dev_out.endswith("dev-lora-output.txt"), \
-        'For saving results, please set the dev_out argument as "<dataset>-dev-finetuning-output.txt" or "<dataset>-dev-lora-output.txt"'
-    assert args.test_out.endswith("test-finetuning-output.txt") or args.test_out.endswith("test-lora-output.txt"), \
-        'For saving results, please set the test_out argument as "<dataset>-test-finetuning-output.txt" or "<dataset>-test-lora-output.txt"'
+    # assert args.dev_out.endswith("dev-finetuning-output.txt") or args.dev_out.endswith("dev-lora-output.txt"), \
+        # 'For saving results, please set the dev_out argument as "<dataset>-dev-finetuning-output.txt" or "<dataset>-dev-lora-output.txt"'
+    # assert args.test_out.endswith("test-finetuning-output.txt") or args.test_out.endswith("test-lora-output.txt"), \
+        # 'For saving results, please set the test_out argument as "<dataset>-test-finetuning-output.txt" or "<dataset>-test-lora-output.txt"'
     
     with torch.no_grad():
         device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
