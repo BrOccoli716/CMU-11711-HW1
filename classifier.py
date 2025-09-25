@@ -62,7 +62,7 @@ class LlamaEmbeddingClassifier(torch.nn.Module):
 		if padding_mask is not None:
 			last_indices = padding_mask.sum(dim=1) - 2
 			_batch_size = hidden_states.shape[0]
-			hidden_state = self.output(hidden_states[torch.arange(_batch_size), last_indices, :].unsqueeze(1))
+			hidden_state = hidden_states[torch.arange(_batch_size), last_indices, :]
 		else:
 			hidden_state = hidden_states[:, -1, :]
 		hidden_state = self.dropout(hidden_state)
