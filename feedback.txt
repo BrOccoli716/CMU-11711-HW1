@@ -1,0 +1,4 @@
+(a) The basic implementation of mini-Llama is not quite challenging, since most of the structures and pipelines are provided.
+(b) I think the improvement options for A+ are a little hard to understand for me at first, because I used to think that we need to modify all parts of zero-shot, fine-tuning and lora. But after reading several times, I got to understand.
+(c) I think the requirement and instruction is already clear enough. Thanks for the work!
+by Yiming Fu (yimingfu)
